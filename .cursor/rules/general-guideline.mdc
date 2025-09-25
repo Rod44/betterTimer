@@ -1,0 +1,14 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+# General guideline
+- Everytime you get a new request from the user, you will read the readme file at the project root to gather the right context.
+- The to-do.md file at the root of the projects indicates what has been done and what should be worked on next
+
+# Stack 
+- electron
+- next.js and shadcn
+- shadcn mcp to helo you use the best shadcn components properly

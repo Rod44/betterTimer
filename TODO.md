@@ -1,0 +1,35 @@
+- [x] set up project with next.js and electron
+- [x] set up window size of 500px on 150px
+- [x] add a top bar on the window so we can make the window draggable and later add clickable icons on it   
+- [x] Locked feature: 
+    - User can switch the window between locked and unlocked mode
+        - in locked mode, the window always stays above all other windows used by the user, so that the use can always see how long is left on the timer
+        - in unlocked mode, the window acts like usual and  once the user switches app it will go under it visually
+    - You will add an icon on the right side of the top bar of a lock to toggle that behaviour on/off.
+    - You will use lucide icons for easy use of icons throughout the app
+    - The icon will change depending on the status: if locked, the icon will show a locked icon, if unlocked the icon will be the unlocked icon. 
+    - Behaviour: when i click on the current locked icon it toggles the behaviour to unlocked, when i click on the current unlocked icon it toggles the behaviour to locked
+- [x] Timer feature v0:
+    - 2 states: 
+        - set timer
+        - timer in progress
+    - For set timer state: 
+        - user will see "00(min)" and a play button which can only be clickable when minute number is not zero.
+        - Hours and mins will be settable by the user, how you will ask?
+        - Basically the minute number will be circled by a circle selector which will represent a 0 to 60 selection. Zero will be on the top middle of the circle, 30 on the top bottom of the circle
+        - Interaction: as a user, when I over around parts of the circle, a small dots appears where my mouse is showing a small tooltip indicating the minute selection I am making. Once I click in the part of the circle that corresponds to my selection, it sets the minute number to my selection. Finaly to launch the timer, I can click on the play button.
+- [x] Set the full background image of the app as the picture named background.jpg in public folder and add a 0.30% oppacity black overlay to help the content of the app be more visible.
+- [x] Create the dark mode / light mode feature
+    - Right now the app is a bad mix of light and dark mode. Pbs: 
+        - bg black opacity should be in dark mode
+        - fonts should be white in dark mode, black in white mode
+        - The icon should be white in dark mode, black in white mode
+    - I'd like a button in top bar of a moon for dark mode and a sun for light mode, when clicking on one or the other it toggles dark/light mode
+- [x] Design change on the timer in progress visual
+    - The countdown nbs should be twice as big and should take all the width of the app
+    - Buttons to pause and stop should be twice as small and under the countdown, aligned horiztontally in the middle
+- [x] Move the pause and quit buttons to the right of the countdown, vertically aligned, one on top of the other
+- [x] Add another state for the running countdown, it is the selected vs not selected mode. 
+When the window is active, meaning it is the app currently focused, because i clicked on it, the pause and quit button disapear, and countdown grows bigger. The countdown text height should take 80% of the app height, at all time (it must be reponsive) in not selected mode, in selected mode, should be around 60%. (Take into account a max width of 90% screen width.)
+- [x] When there i less than 1 hour, remove hours from the countdown, so minutes + seconds appear bigger
+- [] 
