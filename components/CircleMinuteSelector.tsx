@@ -167,8 +167,12 @@ export default function CircleMinuteSelector({ value, onChange, size = 50, steps
       {/* Center label */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center">
-          <div className="text-2xl font-sans">{value.toString().padStart(2, '0')}</div>
-          <div className="text-sm opacity-60">{unitLabel}</div>
+          <div className="text-2xl font-sans leading-none">
+            {value.toString().padStart(2, '0')}
+          </div>
+          <div className="text-xs opacity-60 leading-none -mt-0.5">
+            {unitLabel}
+          </div>
         </div>
       </div>
     </div>

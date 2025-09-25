@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Play, Pause, RotateCcw, X } from 'lucide-react';
+import { Play, Pause, X } from 'lucide-react';
 import CircleMinuteSelector from './CircleMinuteSelector';
 
 type TimerState = 'set' | 'running' | 'paused' | 'completed';
@@ -15,6 +15,7 @@ export default function Timer({ className = '' }: TimerProps) {
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
+  const [seconds, setSeconds] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0); // in seconds
   // UI is constrained to 400x150 (minus top bar); avoid extra elements that could cause overflow
 
@@ -53,25 +54,30 @@ export default function Timer({ className = '' }: TimerProps) {
     };
   }, [state, timeLeft]);
 
-  const recomputeTimeLeft = useCallback((h: number, m: number) => {
-    setTimeLeft(h * 3600 + m * 60);
+  const recomputeTimeLeft = useCallback((h: number, m: number, s: number) => {
+    setTimeLeft(h * 3600 + m * 60 + s);
   }, []);
 
   const handleHourSelect = useCallback((selectedHour: number) => {
     setHours(selectedHour);
-    recomputeTimeLeft(selectedHour, minutes);
-  }, [minutes, recomputeTimeLeft]);
+    recomputeTimeLeft(selectedHour, minutes, seconds);
+  }, [minutes, seconds, recomputeTimeLeft]);
 
   const handleMinuteSelect = useCallback((selectedMinute: number) => {
     setMinutes(selectedMinute);
-    recomputeTimeLeft(hours, selectedMinute);
-  }, [hours, recomputeTimeLeft]);
+    recomputeTimeLeft(hours, selectedMinute, seconds);
+  }, [hours, seconds, recomputeTimeLeft]);
+
+  const handleSecondSelect = useCallback((selectedSecond: number) => {
+    setSeconds(selectedSecond);
+    recomputeTimeLeft(hours, minutes, selectedSecond);
+  }, [hours, minutes, recomputeTimeLeft]);
 
   const handlePlay = useCallback(() => {
-    if (hours > 0 || minutes > 0) {
+    if (hours > 0 || minutes > 0 || seconds > 0) {
       setState('running');
     }
-  }, [hours, minutes]);
+  }, [hours, minutes, seconds]);
 
   const handlePause = useCallback(() => {
     setState('paused');
@@ -79,41 +85,24 @@ export default function Timer({ className = '' }: TimerProps) {
 
   const handleReset = useCallback(() => {
     setState('set');
-    recomputeTimeLeft(hours, minutes);
-  }, [hours, minutes, recomputeTimeLeft]);
+    recomputeTimeLeft(hours, minutes, seconds);
+  }, [hours, minutes, seconds, recomputeTimeLeft]);
 
   const handleStop = useCallback(() => {
     setState('set');
     setHours(0);
     setMinutes(0);
+    setSeconds(0);
     setTimeLeft(0);
   }, []);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatHMS = (totalSeconds: number) => {
-    const hrs = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    if (hrs <= 0) {
-      return `${mins.toString().padStart(2, '0')}:${secs
-        .toString()
-        .padStart(2, '0')}`;
-    }
-    return `${hrs.toString().padStart(2, '0')}:${mins
-      .toString()
-      .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-
   const renderSelectors = () => (
-    <div className="flex items-center gap-2">
-      <CircleMinuteSelector value={hours} onChange={handleHourSelect} size={90} steps={6} unitLabel="hrs" />
-      <CircleMinuteSelector value={minutes} onChange={handleMinuteSelect} size={90} steps={60} unitLabel="min" />
+    <div className="flex items-center gap-0">
+      <CircleMinuteSelector value={hours} onChange={handleHourSelect} size={80} steps={6} unitLabel="hrs" />
+      <div className="px-0 text-xl opacity-70">:</div>
+      <CircleMinuteSelector value={minutes} onChange={handleMinuteSelect} size={80} steps={60} unitLabel="min" />
+      <div className="px-0 text-xl opacity-70">:</div>
+      <CircleMinuteSelector value={seconds} onChange={handleSecondSelect} size={80} steps={60} unitLabel="sec" />
     </div>
   );
 
@@ -129,9 +118,9 @@ export default function Timer({ className = '' }: TimerProps) {
       <div className="h-full flex flex-col items-end justify-center pr-[15px] max-w-[20%] flex-shrink-0">
         <button
           onClick={handlePlay}
-          disabled={hours === 0 && minutes === 0}
+          disabled={hours === 0 && minutes === 0 && seconds === 0}
           className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${
-            hours > 0 || minutes > 0
+            hours > 0 || minutes > 0 || seconds > 0
               ? 'bg-primary text-primary-foreground hover:bg-primary/90'
               : 'bg-muted text-muted-foreground cursor-not-allowed'
           }`}
@@ -149,20 +138,32 @@ export default function Timer({ className = '' }: TimerProps) {
         {(() => {
           const showHours = timeLeft >= 3600;
           const minPx = showHours ? 24 : 28;
-          // Tighter caps when hours are visible to avoid horizontal overflow
-          const vw = showHours
-            ? (!isFocused ? 18 : 16)
-            : (!isFocused ? 28 : 24);
-          const maxPx = showHours
-            ? (!isFocused ? 190 : 130)
-            : (!isFocused ? 260 : 180);
+          const vw = showHours ? (!isFocused ? 18 : 16) : (!isFocused ? 28 : 24);
+          const maxPx = showHours ? (!isFocused ? 190 : 130) : (!isFocused ? 260 : 180);
           const fontSize = `clamp(${minPx}px, ${vw}vw, ${maxPx}px)`;
+          const hrs = Math.floor(timeLeft / 3600);
+          const mins = Math.floor((timeLeft % 3600) / 60);
+          const secs = timeLeft % 60;
           return (
             <div
-              className={`w-full h-full mt-[0px] mb-[15px] text-center font-sans font-bold leading-none tracking-tight overflow-hidden whitespace-nowrap`}
+              className={`w-full h-full mt-[0px] mb-[15px] text-center font-sans font-bold leading-none tracking-tight overflow-hidden`}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: isFocused ? '90%' : '100%', fontSize }}
             >
-              {formatHMS(timeLeft)}
+              {showHours ? (
+                <div className="flex items-center justify-center tabular-nums lining-nums">
+                  <span className="inline-block w-[1.8ch] text-left">{hrs.toString().padStart(2, '0')}</span>
+                  <span className="inline-block w-[0.6ch] text-left">:</span>
+                  <span className="inline-block w-[1.8ch] text-left">{mins.toString().padStart(2, '0')}</span>
+                  <span className="inline-block w-[0.6ch] text-left">:</span>
+                  <span className="inline-block w-[1.8ch] text-left">{secs.toString().padStart(2, '0')}</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center tabular-nums lining-nums">
+                  <span className="inline-block w-[1.6ch] text-left">{mins.toString().padStart(2, '0')}</span>
+                  <span className="inline-block w-[0.6ch] text-left">:</span>
+                  <span className="inline-block w-[1.8ch] text-left">{secs.toString().padStart(2, '0')}</span>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -211,15 +212,20 @@ export default function Timer({ className = '' }: TimerProps) {
 
   const renderCompletedState = () => (
     <div className="h-full w-full flex items-center justify-between px-3">
-      <div className="shrink-0">
-        <CircleMinuteSelector value={0} onChange={handleMinuteSelect} size={112} />
+      <div className="flex-1 h-full flex items-center justify-center">
+        <div
+          className="text-center font-sans font-semibold leading-none tracking-tight text-foreground"
+          style={{ fontSize: 'clamp(16px, 4vw, 22px)' }}
+        >
+          Done is better than perfect.
+        </div>
       </div>
       <div className="shrink-0">
         <button
-          onClick={handleStop}
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          onClick={handleReset}
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
         >
-          <RotateCcw className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

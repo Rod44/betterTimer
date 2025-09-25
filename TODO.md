@@ -32,4 +32,4 @@
 - [x] Add another state for the running countdown, it is the selected vs not selected mode. 
 When the window is active, meaning it is the app currently focused, because i clicked on it, the pause and quit button disapear, and countdown grows bigger. The countdown text height should take 80% of the app height, at all time (it must be reponsive) in not selected mode, in selected mode, should be around 60%. (Take into account a max width of 90% screen width.)
 - [x] When there i less than 1 hour, remove hours from the countdown, so minutes + seconds appear bigger
-- [] 
+- [x] When a countdown arrives at Zero, a sentence will appear in place of the countdown : "Done is better than perfect. And the cross button will also be there to go back to set timer state
