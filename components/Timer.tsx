@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Play, Pause, X } from 'lucide-react';
 import CircleMinuteSelector from './CircleMinuteSelector';
 
@@ -89,44 +89,133 @@ export default function Timer({ className = '' }: TimerProps) {
   }, [hours, minutes, seconds, recomputeTimeLeft]);
 
   const handleStop = useCallback(() => {
+    // Return to set state with previously configured time
     setState('set');
-    setHours(0);
-    setMinutes(0);
-    setSeconds(0);
-    setTimeLeft(0);
+    recomputeTimeLeft(hours, minutes, seconds);
+  }, [hours, minutes, seconds, recomputeTimeLeft]);
+
+  // Independent scroll handlers per wheel (no cross-rollover)
+  const WHEEL_STEP_THRESHOLD = 60; // higher => less sensitive (tune as needed)
+  const hoursAccumRef = useRef(0);
+  const minutesAccumRef = useRef(0);
+  const secondsAccumRef = useRef(0);
+
+  const wrap = useCallback((val: number, maxInclusive: number) => {
+    const modulo = maxInclusive + 1;
+    let v = ((val % modulo) + modulo) % modulo;
+    return v;
   }, []);
+
+  const adjustHoursBy = useCallback((delta: number) => {
+    const next = wrap(hours + delta, 12);
+    if (next !== hours) setHours(next);
+    recomputeTimeLeft(next, minutes, seconds);
+  }, [hours, minutes, seconds, wrap, recomputeTimeLeft]);
+
+  const adjustMinutesBy = useCallback((delta: number) => {
+    const next = wrap(minutes + delta, 59);
+    if (next !== minutes) setMinutes(next);
+    recomputeTimeLeft(hours, next, seconds);
+  }, [hours, minutes, seconds, wrap, recomputeTimeLeft]);
+
+  const adjustSecondsBy = useCallback((delta: number) => {
+    const next = wrap(seconds + delta, 59);
+    if (next !== seconds) setSeconds(next);
+    recomputeTimeLeft(hours, minutes, next);
+  }, [hours, minutes, seconds, wrap, recomputeTimeLeft]);
+
+  const onWheelHours = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (state !== 'set') return;
+    e.preventDefault();
+    hoursAccumRef.current += e.deltaY;
+    // scroll up (deltaY < 0) should increase value
+    while (hoursAccumRef.current <= -WHEEL_STEP_THRESHOLD) {
+      adjustHoursBy(-1);
+      hoursAccumRef.current += WHEEL_STEP_THRESHOLD;
+    }
+    while (hoursAccumRef.current >= WHEEL_STEP_THRESHOLD) {
+      adjustHoursBy(1);
+      hoursAccumRef.current -= WHEEL_STEP_THRESHOLD;
+    }
+  }, [state, adjustHoursBy]);
+
+  const onWheelMinutes = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (state !== 'set') return;
+    e.preventDefault();
+    minutesAccumRef.current += e.deltaY;
+    while (minutesAccumRef.current <= -WHEEL_STEP_THRESHOLD) {
+      adjustMinutesBy(-1);
+      minutesAccumRef.current += WHEEL_STEP_THRESHOLD;
+    }
+    while (minutesAccumRef.current >= WHEEL_STEP_THRESHOLD) {
+      adjustMinutesBy(1);
+      minutesAccumRef.current -= WHEEL_STEP_THRESHOLD;
+    }
+  }, [state, adjustMinutesBy]);
+
+  const onWheelSeconds = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (state !== 'set') return;
+    e.preventDefault();
+    secondsAccumRef.current += e.deltaY;
+    while (secondsAccumRef.current <= -WHEEL_STEP_THRESHOLD) {
+      adjustSecondsBy(-1);
+      secondsAccumRef.current += WHEEL_STEP_THRESHOLD;
+    }
+    while (secondsAccumRef.current >= WHEEL_STEP_THRESHOLD) {
+      adjustSecondsBy(1);
+      secondsAccumRef.current -= WHEEL_STEP_THRESHOLD;
+    }
+  }, [state, adjustSecondsBy]);
 
   const renderSelectors = () => (
     <div className="flex items-center gap-0">
-      <CircleMinuteSelector value={hours} onChange={handleHourSelect} size={80} steps={6} unitLabel="hrs" />
+      <div onWheel={onWheelHours}>
+        <CircleMinuteSelector value={hours} onChange={handleHourSelect} size={80} steps={12} unitLabel="hrs" />
+      </div>
       <div className="px-0 text-xl opacity-70">:</div>
-      <CircleMinuteSelector value={minutes} onChange={handleMinuteSelect} size={80} steps={60} unitLabel="min" />
+      <div onWheel={onWheelMinutes}>
+        <CircleMinuteSelector value={minutes} onChange={handleMinuteSelect} size={80} steps={60} unitLabel="min" />
+      </div>
       <div className="px-0 text-xl opacity-70">:</div>
-      <CircleMinuteSelector value={seconds} onChange={handleSecondSelect} size={80} steps={60} unitLabel="sec" />
+      <div onWheel={onWheelSeconds}>
+        <CircleMinuteSelector value={seconds} onChange={handleSecondSelect} size={80} steps={60} unitLabel="sec" />
+      </div>
     </div>
   );
 
   const renderSetTimerState = () => (
-    <div className="h-full w-full flex">
+    <div className="h-full w-full flex ">
       {/* Left content area (fills remaining space) */}
       <div className="flex-1 h-full flex items-center justify-center">
-        <div className="w-full h-full flex items-center justify-center">
-          {renderSelectors()}
+        <div
+          className="w-full h-full flex items-center justify-center"
+          style={{ height: isFocused ? '90%' : '100%' }}
+        >
+          <div className="mt-[0px] mb-[15px]">
+            {renderSelectors()}
+          </div>
         </div>
       </div>
       {/* Right controls area (max 20%) */}
       <div className="h-full flex flex-col items-end justify-center pr-[15px] max-w-[20%] flex-shrink-0">
-        <button
-          onClick={handlePlay}
-          disabled={hours === 0 && minutes === 0 && seconds === 0}
-          className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${
-            hours > 0 || minutes > 0 || seconds > 0
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
-          }`}
+        <div
+          className="w-full flex flex-col items-end justify-center"
+          style={{ height: isFocused ? '90%' : '100%' }}
         >
-          <Play className="w-5 h-5 ml-0.5" />
-        </button>
+          <div className="mt-[0px] mb-[15px]">
+            <button
+              onClick={handlePlay}
+              disabled={hours === 0 && minutes === 0 && seconds === 0}
+              className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors ${
+                hours > 0 || minutes > 0 || seconds > 0
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed'
+              }`}
+            >
+              <Play className="w-5 h-5 ml-0.5" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -151,17 +240,17 @@ export default function Timer({ className = '' }: TimerProps) {
             >
               {showHours ? (
                 <div className="flex items-center justify-center tabular-nums lining-nums">
-                  <span className="inline-block w-[1.8ch] text-left">{hrs.toString().padStart(2, '0')}</span>
-                  <span className="inline-block w-[0.6ch] text-left">:</span>
-                  <span className="inline-block w-[1.8ch] text-left">{mins.toString().padStart(2, '0')}</span>
-                  <span className="inline-block w-[0.6ch] text-left">:</span>
-                  <span className="inline-block w-[1.8ch] text-left">{secs.toString().padStart(2, '0')}</span>
+                  <span className="inline-flex justify-center w-[2ch]">{hrs.toString().padStart(2, '0')}</span>
+                  <span className="inline-flex justify-center w-[0.3ch]">:</span>
+                  <span className="inline-flex justify-center w-[2ch]">{mins.toString().padStart(2, '0')}</span>
+                  <span className="inline-flex justify-center w-[0.3ch]">:</span>
+                  <span className="inline-flex justify-center w-[2ch]">{secs.toString().padStart(2, '0')}</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center tabular-nums lining-nums">
-                  <span className="inline-block w-[1.6ch] text-left">{mins.toString().padStart(2, '0')}</span>
-                  <span className="inline-block w-[0.6ch] text-left">:</span>
-                  <span className="inline-block w-[1.8ch] text-left">{secs.toString().padStart(2, '0')}</span>
+                  <span className="inline-flex justify-center w-[2ch]">{mins.toString().padStart(2, '0')}</span>
+                  <span className="inline-flex justify-center w-[0.3ch]">:</span>
+                  <span className="inline-flex justify-center w-[2ch]">{secs.toString().padStart(2, '0')}</span>
                 </div>
               )}
             </div>
@@ -213,20 +302,26 @@ export default function Timer({ className = '' }: TimerProps) {
   const renderCompletedState = () => (
     <div className="h-full w-full flex items-center justify-between px-3">
       <div className="flex-1 h-full flex items-center justify-center">
-        <div
-          className="text-center font-sans font-semibold leading-none tracking-tight text-foreground"
-          style={{ fontSize: 'clamp(16px, 4vw, 22px)' }}
-        >
-          Done is better than perfect.
+        <div className="w-full h-full flex items-center justify-center" style={{ height: isFocused ? '90%' : '100%' }}>
+          <div
+            className="mt-[0px] mb-[15px] text-center font-sans font-semibold leading-none tracking-tight text-foreground"
+            style={{ fontSize: 'clamp(16px, 4vw, 22px)' }}
+          >
+            Done is better than perfect.
+          </div>
         </div>
       </div>
-      <div className="shrink-0">
-        <button
-          onClick={handleReset}
-          className="flex items-center justify-center w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
+      <div className="shrink-0 h-full flex items-center">
+        <div className="flex items-center" style={{ height: isFocused ? '90%' : '100%' }}>
+          <div className="mt-[0px] mb-[15px]">
+            <button
+              onClick={handleReset}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

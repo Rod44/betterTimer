@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface CircleSelectorProps {
   value: number; // 0..steps-1 (0..59 for minutes, 0..23 for hours)
@@ -67,13 +67,56 @@ export default function CircleMinuteSelector({ value, onChange, size = 50, steps
 
   // Compute indicator positions
   const stepAngle = useMemo(() => (value / steps) * 360, [value, steps]);
+  // Smoothly animate toward the target angle to create a fluid thumb/progress motion
+  const animationFrameRef = useRef<number | null>(null);
+  const [animatedAngle, setAnimatedAngle] = useState(stepAngle);
+
+  // Utility to wrap an angle into [0, 360)
+  const normalizeAngle = useCallback((ang: number) => {
+    let a = ang % 360;
+    if (a < 0) a += 360;
+    return a;
+  }, []);
+
+  useEffect(() => {
+    const target = stepAngle;
+    let raf: number | null = null;
+    const stiffness = 0.22; // higher = faster catch-up
+
+    const tick = () => {
+      setAnimatedAngle((current) => {
+        // Find shortest delta considering wrap-around
+        const cur = normalizeAngle(current);
+        const tar = normalizeAngle(target);
+        let delta = tar - cur;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+
+        const next = cur + delta * stiffness;
+        if (Math.abs(delta) < 0.5) {
+          return tar; // snap when close
+        }
+        return normalizeAngle(next);
+      });
+      raf = requestAnimationFrame(tick);
+      animationFrameRef.current = raf;
+    };
+
+    raf = requestAnimationFrame(tick);
+    animationFrameRef.current = raf;
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    };
+  }, [stepAngle, normalizeAngle]);
+
   const indicator = useMemo(() => {
-    const rad = (stepAngle - 90) * Math.PI / 180;
+    const rad = (animatedAngle - 90) * Math.PI / 180;
     return {
       x: Math.round((center.x + Math.cos(rad) * radius) * 100) / 100,
       y: Math.round((center.y + Math.sin(rad) * radius) * 100) / 100,
     };
-  }, [center.x, center.y, radius, stepAngle]);
+  }, [center.x, center.y, radius, animatedAngle]);
 
   const hoverIndicator = useMemo(() => {
     if (hoverStep === null) return null;
@@ -118,7 +161,8 @@ export default function CircleMinuteSelector({ value, onChange, size = 50, steps
           {/* Progress */}
           {(() => {
             const circumference = Math.PI * 2 * radius;
-            const progress = (value / steps) * circumference;
+            const progressFraction = animatedAngle / 360;
+            const progress = progressFraction * circumference;
             const rest = Math.max(0, circumference - progress);
             return (
               <circle
@@ -170,7 +214,7 @@ export default function CircleMinuteSelector({ value, onChange, size = 50, steps
           <div className="text-2xl font-sans leading-none">
             {value.toString().padStart(2, '0')}
           </div>
-          <div className="text-xs opacity-60 leading-none -mt-0.5">
+          <div className="text-xs opacity-60 leading-none -mt-0.8">
             {unitLabel}
           </div>
         </div>

@@ -33,3 +33,6 @@
 When the window is active, meaning it is the app currently focused, because i clicked on it, the pause and quit button disapear, and countdown grows bigger. The countdown text height should take 80% of the app height, at all time (it must be reponsive) in not selected mode, in selected mode, should be around 60%. (Take into account a max width of 90% screen width.)
 - [x] When there i less than 1 hour, remove hours from the countdown, so minutes + seconds appear bigger
 - [x] When a countdown arrives at Zero, a sentence will appear in place of the countdown : "Done is better than perfect. And the cross button will also be there to go back to set timer state
+- [x] Adding scroll feature: when scrolling up or down while during set timer state, it will add minutes to the set timer value. If scroll up, it adds time to the current time value, if I scroll down, it removes time to the current time value. The sliders should adjust. 
+- [] Time presets feature: inside the top bar, we will have a infinite vertical scroll, containing time presets the user will click and that will fill the hh/mm/ss value instantly. Values should be: 5m, 10m, 15m, 30m, 45m, 1h, 1h30, 2h, 3h, 4h.
+    - the options should disapear behind the icons on the right of the top bar. Please craft a new component for that that you will import in top bar 
