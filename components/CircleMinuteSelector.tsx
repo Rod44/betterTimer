@@ -18,7 +18,7 @@ export default function CircleMinuteSelector({ value, onChange, size = 50, steps
   const radius = useMemo(() => (size / 2) - 10, [size]);
   const center = useMemo(() => ({ x: size / 2, y: size / 2 }), [size]);
   const ringThickness = 32; // hit area thickness
-  const trackThickness = 6; // visual thickness
+  const trackThickness = 4; // visual thickness
 
   const eventToStep = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current;

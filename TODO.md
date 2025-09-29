@@ -34,5 +34,9 @@ When the window is active, meaning it is the app currently focused, because i cl
 - [x] When there i less than 1 hour, remove hours from the countdown, so minutes + seconds appear bigger
 - [x] When a countdown arrives at Zero, a sentence will appear in place of the countdown : "Done is better than perfect. And the cross button will also be there to go back to set timer state
 - [x] Adding scroll feature: when scrolling up or down while during set timer state, it will add minutes to the set timer value. If scroll up, it adds time to the current time value, if I scroll down, it removes time to the current time value. The sliders should adjust. 
-- [] Time presets feature: inside the top bar, we will have a infinite vertical scroll, containing time presets the user will click and that will fill the hh/mm/ss value instantly. Values should be: 5m, 10m, 15m, 30m, 45m, 1h, 1h30, 2h, 3h, 4h.
+- [] Moving timer window top to bottom of screen in order to make it easier to see things below the timer window.
+    - Pb: as a user, sometimes interesting content is below the timer, so I need to do the effort of moving the window around and then replacing it.
+    - Solution: When the window is in the screen bottom, in the top bar, i Have an up arrow icon i can click so the window go to top. And the opposite works also, if window top, i see bottom arrow. 
+
+- [cancelled] Time presets feature: inside the top bar, we will have a infinite vertical scroll, containing time presets the user will click and that will fill the hh/mm/ss value instantly. Values should be: 5m, 10m, 15m, 30m, 45m, 1h, 1h30, 2h, 3h, 4h.
     - the options should disapear behind the icons on the right of the top bar. Please craft a new component for that that you will import in top bar 

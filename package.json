@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "main": "electron/main.js",
+  "author": "Rodrigue Buisson",
+  "description": "Focus - A simple, intuitive timer app for macOS",
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:electron": "concurrently -k \"next dev --turbopack\" \"wait-on tcp:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron .\"",
-    "build": "next build --turbopack",
+    "build": "next build && electron-builder",
     "start": "next start",
+    "start:prod": "npm run build && concurrently -k \"next start -p 3000\" \"wait-on tcp:3000 && cross-env NODE_ENV=production ELECTRON_START_URL=http://localhost:3000 electron .\"",
     "start:electron": "cross-env NODE_ENV=production electron .",
-    "dist": "npm run build && electron-builder --mac",
+    "dist": "npm run build && cross-env SKIP_REBUILD=true electron-builder --mac",
     "lint": "eslint"
   },
   "dependencies": {
@@ -42,12 +45,17 @@
   },
   "build": {
     "appId": "com.example.better-timer",
-    "productName": "Better Timer",
+    "productName": "Focus",
+    "npmRebuild": false,
+    "nativeRebuilder": null,
+    "asarUnpack": [
+      "out/**",
+      "public/**"
+    ],
     "files": [
       "electron/**",
-      "app/**",
+      "out/**",
       "public/**",
-      ".next/**",
       "next.config.ts",
       "package.json",
       "node_modules/**"
@@ -55,13 +63,35 @@
     "asar": true,
     "mac": {
       "category": "public.app-category.productivity",
+      "icon": "public/icon.icns",
       "target": [
         {
           "target": "dmg",
           "arch": [
-            "x64",
             "arm64"
           ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "Focus Installer",
+      "icon": "public/icon.icns",
+      "background": null,
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
         }
       ]
     }

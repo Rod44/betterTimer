@@ -102,7 +102,7 @@ export default function Timer({ className = '' }: TimerProps) {
 
   const wrap = useCallback((val: number, maxInclusive: number) => {
     const modulo = maxInclusive + 1;
-    let v = ((val % modulo) + modulo) % modulo;
+    const v = ((val % modulo) + modulo) % modulo;
     return v;
   }, []);
 

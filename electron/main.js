@@ -1,66 +1,78 @@
 const { app, BrowserWindow, shell, ipcMain, screen } = require('electron');
 const path = require('path');
-const http = require('http');
 const { spawn } = require('child_process');
+const http = require('http');
+const fs = require('fs');
 
 let mainWindow = null;
-let nextServerProcess = null;
 let alwaysOnTopEnabled = false;
+let staticServer = null;
 
 const isMac = process.platform === 'darwin';
-const isDev = process.env.NODE_ENV !== 'production' || !app.isPackaged;
-const DEV_URL = process.env.ELECTRON_START_URL || 'http://localhost:3000';
+const isDev = !app.isPackaged;
 
-function waitForServer(urlString, timeoutMs = 20000) {
-  const start = Date.now();
+// Simple HTTP server for serving static files
+function startStaticServer() {
   return new Promise((resolve, reject) => {
-    const tryRequest = () => {
-      const req = http.get(urlString, (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 500) {
-          res.destroy();
-          resolve();
-        } else {
-          res.resume();
-          retry();
-        }
-      });
-      req.on('error', retry);
-      req.setTimeout(3000, () => {
-        req.destroy();
-        retry();
-      });
-    };
-
-    const retry = () => {
-      if (Date.now() - start > timeoutMs) {
-        reject(new Error('Timed out waiting for server'));
+    const port = 3001;
+    const outDir = path.join(__dirname, '../out');
+    
+    staticServer = http.createServer((req, res) => {
+      let filePath = path.join(outDir, req.url === '/' ? 'index.html' : req.url);
+      
+      // Security check - ensure file is within out directory
+      if (!filePath.startsWith(outDir)) {
+        res.writeHead(403);
+        res.end('Forbidden');
         return;
       }
-      setTimeout(tryRequest, 500);
-    };
-
-    tryRequest();
+      
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          // If file doesn't exist, serve index.html for SPA routing
+          fs.readFile(path.join(outDir, 'index.html'), (err2, data2) => {
+            if (err2) {
+              res.writeHead(404);
+              res.end('Not Found');
+            } else {
+              res.writeHead(200, { 'Content-Type': 'text/html' });
+              res.end(data2);
+            }
+          });
+        } else {
+          // Set appropriate content type
+          const ext = path.extname(filePath);
+          const contentTypes = {
+            '.html': 'text/html',
+            '.css': 'text/css',
+            '.js': 'application/javascript',
+            '.json': 'application/json',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.ico': 'image/x-icon',
+            '.woff': 'font/woff',
+            '.woff2': 'font/woff2',
+            '.ttf': 'font/ttf',
+            '.eot': 'application/vnd.ms-fontobject'
+          };
+          
+          const contentType = contentTypes[ext] || 'application/octet-stream';
+          res.writeHead(200, { 'Content-Type': contentType });
+          res.end(data);
+        }
+      });
+    });
+    
+    staticServer.listen(port, '127.0.0.1', () => {
+      console.log(`Static server running on http://127.0.0.1:${port}`);
+      resolve(`http://127.0.0.1:${port}`);
+    });
+    
+    staticServer.on('error', reject);
   });
-}
-
-function startNextServer() {
-  const nextBin = require.resolve('next/dist/bin/next');
-  const port = process.env.PORT || '3000';
-  const cwd = process.cwd();
-  const env = { ...process.env, NODE_ENV: 'production', PORT: port };
-
-  // Use the embedded Node when packaged
-  const nodeExec = process.execPath;
-
-  const child = spawn(nodeExec, [nextBin, 'start', '-p', port], {
-    cwd,
-    env,
-    stdio: 'inherit',
-  });
-
-  nextServerProcess = child;
-
-  return waitForServer(`http://localhost:${port}`).then(() => `http://localhost:${port}`);
 }
 
 function createMainWindow() {
@@ -81,6 +93,7 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       devTools: true,
+      webSecurity: false, // Disable web security for file:// protocol
     },
   });
 
@@ -90,22 +103,27 @@ function createMainWindow() {
     return { action: 'deny' };
   });
 
-  const loadApp = async () => {
-    try {
-      if (isDev) {
-        await waitForServer(DEV_URL).catch(() => {});
-        await mainWindow.loadURL(DEV_URL);
-        mainWindow.webContents.openDevTools({ mode: 'detach' });
-      } else {
-        const urlToLoad = await startNextServer();
-        await mainWindow.loadURL(urlToLoad);
-      }
-    } catch (err) {
-      console.error('Failed to load app:', err);
-    }
-  };
-
-  loadApp();
+  // Load the app
+  if (app.isPackaged) {
+    // In production, start static server and load from it
+    startStaticServer().then((url) => {
+      mainWindow.loadURL(url);
+    }).catch((err) => {
+      console.error('Failed to start static server:', err);
+    });
+  } else {
+    // In development, load from localhost
+    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    
+    // Handle failed loads in development (when Next.js isn't ready yet)
+    mainWindow.webContents.on('did-fail-load', (e, code, desc) => {
+      console.log('Failed to load, retrying...', desc);
+      setTimeout(() => {
+        mainWindow.webContents.reloadIgnoringCache();
+      }, 1000);
+    });
+  }
 
   // Adjust opacity based on focus to make the app less intrusive when unfocused
   try {
@@ -175,10 +193,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  if (nextServerProcess && !nextServerProcess.killed) {
-    try {
-      nextServerProcess.kill();
-    } catch (e) {}
+  if (staticServer) {
+    staticServer.close();
   }
 });
 
@@ -214,5 +230,3 @@ ipcMain.handle('window:toggleAlwaysOnTop', () => {
   }
   return alwaysOnTopEnabled;
 });
-
-
